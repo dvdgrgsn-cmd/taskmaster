@@ -2,7 +2,7 @@ name: Daily Taskmaster Email
 
 on:
   schedule:
-    - cron: '0 20 * * *' # 6:00 AM Brisbane (UTC+10)
+    - cron: '*/5 * * * *' # Poll every 5 min; app-level schedule decides exact Brisbane send time
   workflow_dispatch:
 
 jobs:
