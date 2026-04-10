@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>TASKMASTER</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f; --surface: #16161a; --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.08); --text: #f0f0f0; --muted: #666;
+    --accent: #e8c547; --accent2: #4de3c0; --danger: #e85d47;
+    --p1: #e85d47; --p2: #e8943a; --p3: #e8c547; --p4: #4de3c0;
+    --gpt-color: #74aa9c;
+    --radius: 14px; --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; line-height: 1.5; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+  #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--accent); color: #000; font-weight: 700; font-size: 13px; padding: 10px 20px; border-radius: 20px; z-index: 999; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* HEADER */
+  header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; background: var(--bg); border-bottom: 1px solid var(--border); gap: 8px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .header-right { display: flex; gap: 8px; align-items: center; }
+  .icon-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 17px; transition: background 0.15s, transform 0.1s; flex-shrink: 0; }
+  .icon-btn:active { transform: scale(0.93); }
+  .icon-btn.accent { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* STATS */
+  .stats-bar { flex-shrink: 0; display: flex; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .stat-item { flex: 1; text-align: center; padding: 6px 4px; }
+  .stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 20px; line-height: 1; color: var(--accent); }
+  .stat-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+  .stat-item + .stat-item { border-left: 1px solid var(--border); }
+
+  /* AI COACH PANEL */
+  .ai-panel {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, rgba(232,197,71,0.07) 0%, rgba(77,227,192,0.05) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    min-height: 56px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-panel::before {
+    content: '';
+    position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2));
+  }
+  .ai-avatar {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    margin-top: 1px;
+  }
+  .ai-content { flex: 1; min-width: 0; }
+  .ai-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 2px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .ai-model-badge {
+    font-size: 8px; font-weight: 700; letter-spacing: 0.8px;
+    padding: 1px 5px; border-radius: 3px;
+    background: rgba(232,197,71,0.15); color: var(--accent);
+    font-family: 'DM Mono', monospace;
+  }
+  .ai-model-badge.gpt { background: rgba(116,170,156,0.15); color: var(--gpt-color); }
+  .ai-text {
+    font-size: 13px; color: #ccc; line-height: 1.45;
+    word-break: break-word;
+  }
+  .ai-text.loading { color: var(--muted); font-style: italic; }
+  .ai-refresh {
+    flex-shrink: 0; background: none; border: none; color: var(--muted);
+    font-size: 16px; cursor: pointer; padding: 4px; border-radius: 6px;
+    transition: transform 0.4s, color 0.15s;
+    align-self: center;
+  }
+  .ai-refresh:active { color: var(--accent); }
+  .ai-refresh.spinning { animation: spin 1s linear infinite; color: var(--accent); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .focus-reco {
+    flex-shrink: 0;
+    margin: 8px 14px 6px;
+    background: linear-gradient(135deg, rgba(232,197,71,0.08), rgba(77,227,192,0.06));
+    border: 1px solid rgba(232,197,71,0.22);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .focus-reco.hidden { display: none !important; }
+  .focus-pin {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    background: rgba(232,197,71,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .focus-content { min-width: 0; flex: 1; }
+  .focus-kicker {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .focus-task {
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 700;
+    line-height: 1.4;
+    margin-top: 2px;
+    word-break: break-word;
+  }
+  .focus-meta {
+    font-size: 12px;
+    color: var(--accent2);
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
+  }
+  .focus-reason {
+    font-size: 12px;
+    color: #c5c5cb;
+    line-height: 1.45;
+    margin-top: 4px;
+  }
+
+  /* AI COACH FULL SHEET */
+  .ai-sheet-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; flex: 1; overflow-y: auto; }
+  .ai-section { background: var(--surface2); border-radius: 12px; padding: 14px; border: 1px solid var(--border); }
+  .ai-section-title { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .ai-section-text { font-size: 14px; color: #ddd; line-height: 1.6; }
+  .ai-focus-card {
+    background: linear-gradient(135deg, rgba(232,197,71,0.1), rgba(77,227,192,0.07));
+    border: 1px solid rgba(232,197,71,0.2);
+    border-radius: 12px; padding: 14px;
+  }
+  .ai-focus-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 4px; }
+  .ai-focus-task { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .ai-focus-reason { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* PROVIDER TOGGLE */
+  .provider-toggle { display: flex; gap: 3px; background: var(--bg); border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+  .provider-btn { padding: 5px 12px; border-radius: 5px; border: none; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; font-family: 'Bebas Neue', sans-serif; color: var(--muted); background: none; transition: all 0.15s; }
+  .provider-btn.active-claude { background: var(--accent); color: #000; }
+  .provider-btn.active-gpt { background: var(--gpt-color); color: #000; }
+  .provider-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* CHAT */
+  .ai-chat-area { display: flex; flex-direction: column; gap: 10px; }
+  .chat-input-row { display: flex; gap: 8px; align-items: flex-end; }
+  .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 13px; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; resize: none; min-height: 44px; max-height: 100px; transition: border-color 0.15s; }
+  .chat-input:focus { border-color: var(--accent); }
+  .chat-send { background: var(--accent); color: #000; border: none; border-radius: 10px; width: 44px; height: 44px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: 700; transition: opacity 0.15s; }
+  .chat-send:active { opacity: 0.8; }
+  .chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chat-messages { display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; }
+  .chat-msg { display: flex; gap: 8px; align-items: flex-start; }
+  .chat-msg.user { flex-direction: row-reverse; }
+  .chat-bubble { max-width: 85%; padding: 9px 12px; border-radius: 14px; font-size: 13.5px; line-height: 1.5; }
+  .chat-msg.ai .chat-bubble { background: var(--surface2); color: #ddd; border-bottom-left-radius: 4px; }
+  .chat-msg.user .chat-bubble { background: var(--accent); color: #000; font-weight: 500; border-bottom-right-radius: 4px; }
+  .chat-msg-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; margin-top: 2px; }
+  .chat-msg.ai .chat-msg-avatar { background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  .chat-msg.user .chat-msg-avatar { background: var(--surface2); }
+  .chat-typing { display: flex; gap: 4px; padding: 10px 14px; align-items: center; }
+  .chat-typing span { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: bounce 1.2s infinite; }
+  .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+  .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  /* FILTER */
+  .filter-bar { flex-shrink: 0; display: flex; gap: 7px; padding: 8px 16px; background: var(--bg); overflow-x: auto; scrollbar-width: none; }
+  .filter-bar::-webkit-scrollbar { display: none; }
+  .filter-chip { flex-shrink: 0; background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .filter-chip.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* SORT */
+  .sort-bar { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 5px 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .sort-lbl { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0; }
+  .sort-bar select { flex: 1; padding: 4px 10px; font-size: 12px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); color: var(--text); -webkit-appearance: none; outline: none; }
+
+  /* TASK LIST */
+  .task-list { flex: 1; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 9px; padding-bottom: calc(16px + var(--safe-bottom)); }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted); font-size: 14px; padding: 40px; text-align: center; }
+  .empty-state .big-icon { font-size: 48px; opacity: 0.3; }
+
+  /* TASK CARD */
+  .task-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 12px 10px; display: grid; grid-template-columns: 26px 1fr auto; gap: 9px; align-items: start; animation: slideIn 0.2s ease; position: relative; overflow: hidden; }
+  .task-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .task-card[data-priority="1"]::before { background: var(--p1); }
+  .task-card[data-priority="2"]::before { background: var(--p2); }
+  .task-card[data-priority="3"]::before { background: var(--p3); }
+  .task-card[data-priority="4"]::before { background: var(--p4); }
+  .task-card.done { opacity: 0.4; }
+  .task-card.done .task-title { text-decoration: line-through; color: var(--muted); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .check-wrap { display: flex; align-items: center; padding-top: 2px; }
+  .check-btn { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: transparent; flex-shrink: 0; transition: all 0.15s; }
+  .check-btn.checked { background: var(--accent2); border-color: var(--accent2); color: #000; }
+  .task-body { overflow: hidden; }
+  .task-title { font-weight: 600; font-size: 15px; margin-bottom: 3px; word-break: break-word; line-height: 1.3; }
+  .task-note { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+  .task-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 6px; }
+  .badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 500; font-family: 'DM Mono', monospace; padding: 2px 7px; border-radius: 5px; white-space: nowrap; }
+  .badge.p1 { background: rgba(232,93,71,0.15); color: var(--p1); }
+  .badge.p2 { background: rgba(232,148,58,0.15); color: var(--p2); }
+  .badge.p3 { background: rgba(232,197,71,0.15); color: var(--p3); }
+  .badge.p4 { background: rgba(77,227,192,0.15); color: var(--p4); }
+  .badge.status { background: var(--surface2); color: var(--muted); }
+  .badge.date { background: var(--surface2); color: var(--muted); }
+  .badge.date.overdue { background: rgba(232,93,71,0.12); color: var(--p1); }
+  .badge.date.soon { background: rgba(232,148,58,0.12); color: var(--p2); }
+  .badge.cat { background: rgba(255,255,255,0.05); color: #aaa; }
+  .card-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; }
+  .small-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; padding: 4px; border-radius: 6px; }
+  .small-btn:active { color: var(--accent); }
+
+  /* OVERLAYS */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: flex; align-items: flex-end; z-index: 100; animation: fadeIn 0.2s ease; }
+  .overlay.hidden { display: none; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .sheet { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; max-height: 92dvh; display: flex; flex-direction: column; animation: slideUp 0.25s ease; padding-bottom: calc(16px + var(--safe-bottom)); }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+  .sheet-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 10px; flex-shrink: 0; border-bottom: 1px solid var(--border); }
+  .sheet-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; color: var(--accent); }
+  .close-btn { background: var(--surface2); border: none; color: var(--muted); width: 30px; height: 30px; border-radius: 8px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .sheet-body { overflow-y: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 13px; flex: 1; }
+
+  /* FORM */
+  label { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+  input[type="text"], input[type="date"], input[type="password"], textarea, select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 13px; font-family: 'DM Sans', sans-serif; font-size: 15px; width: 100%; outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { resize: none; min-height: 68px; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+  select option { background: #222; }
+  .seg-control { display: flex; gap: 5px; flex-wrap: wrap; }
+  .seg-btn { flex: 1; min-width: 55px; padding: 7px 4px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center; font-family: 'DM Sans', sans-serif; }
+  .seg-btn.active { border-color: currentColor; }
+  .seg-btn.act-p1.active { color: var(--p1); background: rgba(232,93,71,0.12); }
+  .seg-btn.act-p2.active { color: var(--p2); background: rgba(232,148,58,0.12); }
+  .seg-btn.act-p3.active { color: var(--p3); background: rgba(232,197,71,0.12); }
+  .seg-btn.act-p4.active { color: var(--p4); background: rgba(77,227,192,0.12); }
+  .seg-btn.act-st.active { color: var(--accent); background: rgba(232,197,71,0.1); border-color: var(--accent); }
+  .save-btn { background: var(--accent); color: #000; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 700; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1.5px; cursor: pointer; width: 100%; transition: transform 0.1s, opacity 0.1s; }
+  .save-btn:active { transform: scale(0.97); opacity: 0.85; }
+  .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .delete-btn { background: rgba(232,93,71,0.1); color: var(--danger); border: 1px solid rgba(232,93,71,0.2); border-radius: 12px; padding: 11px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; font-family: 'DM Sans', sans-serif; }
+
+  /* EMAIL / BACKUP */
+  .email-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; }
+  .email-to { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; font-size: 14px; color: var(--accent2); font-family: 'DM Mono', monospace; letter-spacing: 0.3px; }
+  .email-preview { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.7; color: #ccc; max-height: 220px; overflow-y: auto; font-family: 'DM Mono', monospace; white-space: pre-wrap; word-break: break-word; }
+  .backup-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .backup-textarea { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 11px; line-height: 1.5; color: #ccc; height: 160px; font-family: 'DM Mono', monospace; width: 100%; resize: none; outline: none; }
+  .backup-info { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .save-btn { flex: 1; }
+  .sec-btn { flex: 1; background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 13px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; }
+  .sec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* SETTINGS / API STATUS */
+  .api-setup { background: rgba(232,197,71,0.06); border: 1px solid rgba(232,197,71,0.15); border-radius: 12px; padding: 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .api-setup strong { color: var(--accent); }
+  .api-setup a { color: var(--accent2); text-decoration: none; }
+  .api-setup a:hover { text-decoration: underline; }
+  .api-status-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .api-status-row:last-child { border-bottom: none; }
+  .api-status-label { font-size: 14px; font-weight: 600; color: var(--text); }
+  .api-status-val { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 600; }
+  .api-status-val.ok { color: var(--accent2); }
+  .api-status-val.err { color: var(--danger); }
+  .api-status-val.warn { color: var(--accent); }
+  .api-status-block { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 4px 14px; }
+
+  .hidden { display: none !important; }
+
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">TASKMASTER</div>
+  <div class="header-right">
+    <button class="icon-btn" onclick="openAI()" title="AI Coach" style="font-size:20px">🧠</button>
+    <button class="icon-btn" onclick="openBackup()" title="Backup">💾</button>
+    <button class="icon-btn" onclick="printTaskList()" title="Print list">🖨️</button>
+    <button class="icon-btn" onclick="openEmail()" title="Email tasks">✉️</button>
+    <button class="icon-btn" onclick="openSettings()" title="Settings">⚙️</button>
+    <button class="icon-btn accent" onclick="openAdd()">＋</button>
+  </div>
+</header>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item"><div class="stat-num" id="stat-total">0</div><div class="stat-lbl">Active</div></div>
+  <div class="stat-item"><div class="stat-num" id="stat-urgent" style="color:var(--p1)">0</div><div class="stat-lbl">Critical</div></div>
+  <div class="stat-item"><div class="stat-num" id="stat-due" style="color:var(--p2)">0</div><div class="stat-lbl">Due Soon</div></div>
+  <div class="stat-item"><div class="stat-num" id="stat-done" style="color:var(--accent2)">0</div><div class="stat-lbl">Done</div></div>
+</div>
+
+<!-- AI COACH STRIP -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-avatar">🧠</div>
+  <div class="ai-content">
+    <div class="ai-label">
+      AI Coach
+      <span class="ai-model-badge" id="ai-model-badge">CLAUDE</span>
+    </div>
+    <div class="ai-text loading" id="ai-strip-text">Tap refresh to get your daily briefing…</div>
+  </div>
+  <button class="ai-refresh" id="ai-refresh-btn" onclick="loadAIStrip()" title="Refresh insight">↻</button>
+</div>
+
+<div class="focus-reco hidden" id="focus-reco">
+  <div class="focus-pin">🎯</div>
+  <div class="focus-content">
+    <div class="focus-kicker">Next Focus Block</div>
+    <div class="focus-task" id="focus-task">AI is choosing your next move…</div>
+    <div class="focus-meta" id="focus-meta">Suggested block: --</div>
+    <div class="focus-reason" id="focus-reason">Reassessing all tasks…</div>
+  </div>
+</div>
+
+<!-- FILTER -->
+<div class="filter-bar">
+  <div class="filter-chip active" onclick="setFilter('all',this)">All</div>
+  <div class="filter-chip" onclick="setFilter('critical',this)">🔴 Critical</div>
+  <div class="filter-chip" onclick="setFilter('high',this)">🟠 High</div>
+  <div class="filter-chip" onclick="setFilter('medium',this)">🟡 Medium</div>
+  <div class="filter-chip" onclick="setFilter('low',this)">🟢 Low</div>
+  <div class="filter-chip" onclick="setFilter('todo',this)">To Do</div>
+  <div class="filter-chip" onclick="setFilter('inprogress',this)">In Progress</div>
+  <div class="filter-chip" onclick="setFilter('done',this)">Done</div>
+  <div class="filter-chip" onclick="setFilter('overdue',this)">⚠ Overdue</div>
+</div>
+
+<!-- SORT -->
+<div class="sort-bar">
+  <span class="sort-lbl">Sort</span>
+  <select id="sort-select" onchange="renderTasks()">
+    <option value="priority">Priority</option>
+    <option value="due">Due Date</option>
+    <option value="created">Date Created</option>
+    <option value="status">Status</option>
+    <option value="title">Title</option>
+  </select>
+</div>
+
+<!-- TASK LIST -->
+<div class="task-list" id="task-list"></div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ADD / EDIT SHEET
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="overlay hidden" id="add-overlay" onclick="closeAdd(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title" id="sheet-title">NEW TASK</span>
+      <button class="close-btn" onclick="closeAdd()">✕</button>
+    </div>
+    <div class="sheet-body">
+      <input type="hidden" id="edit-id">
+      <label>Task Title *<input type="text" id="f-title" placeholder="What needs to get done?" maxlength="120"></label>
+      <label>Notes / Details<textarea id="f-notes" placeholder="Add context, links, or details…"></textarea></label>
+      <label>Category<input type="text" id="f-cat" placeholder="e.g. Client Work, Admin, Marketing…" list="cat-list" maxlength="40"><datalist id="cat-list"></datalist></label>
+      <label>Priority
+        <div class="seg-control" id="prio-seg">
+          <div class="seg-btn act-p1" data-val="1" onclick="setPrio(1)">🔴 Critical</div>
+          <div class="seg-btn act-p2" data-val="2" onclick="setPrio(2)">🟠 High</div>
+          <div class="seg-btn act-p3 active" data-val="3" onclick="setPrio(3)">🟡 Medium</div>
+          <div class="seg-btn act-p4" data-val="4" onclick="setPrio(4)">🟢 Low</div>
+        </div>
+      </label>
+      <label>Status
+        <div class="seg-control" id="status-seg">
+          <div class="seg-btn act-st active" data-val="todo" onclick="setStatus('todo')">To Do</div>
+          <div class="seg-btn act-st" data-val="inprogress" onclick="setStatus('inprogress')">In Progress</div>
+          <div class="seg-btn act-st" data-val="blocked" onclick="setStatus('blocked')">Blocked</div>
+          <div class="seg-btn act-st" data-val="done" onclick="setStatus('done')">Done</div>
+        </div>
+      </label>
+      <label>Due Date<input type="date" id="f-due"></label>
+      <button class="save-btn" onclick="saveTask()">SAVE TASK</button>
+      <button class="delete-btn hidden" id="delete-btn" onclick="deleteTask()">Delete Task</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     AI COACH FULL SHEET
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="overlay hidden" id="ai-overlay" onclick="closeAI(event)">
+  <div class="sheet" onclick="event.stopPropagation()" style="max-height:95dvh">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">🧠 AI COACH</span>
+      <button class="close-btn" onclick="closeAI()">✕</button>
+    </div>
+    <div class="ai-sheet-body" id="ai-sheet-body">
+      <!-- populated by renderAISheet() -->
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     EMAIL SHEET
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="overlay hidden" id="email-overlay" onclick="closeEmail(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">EMAIL PRIORITIES</span>
+      <button class="close-btn" onclick="closeEmail()">✕</button>
+    </div>
+    <div class="email-body">
+      <label>
+        To
+        <div class="email-to">dvdgrgsn@gmail.com</div>
+      </label>
+      <label>Preview<div class="email-preview" id="email-preview"></div></label>
+      <div class="btn-row">
+        <button class="sec-btn hidden" id="email-server-btn" onclick="sendEmailViaServer()">SEND DIRECTLY</button>
+        <button class="save-btn" id="email-mailto-btn" onclick="sendEmail()">OPEN IN MAIL APP</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     BACKUP SHEET
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="overlay hidden" id="backup-overlay" onclick="closeBackup(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">BACKUP & RESTORE</span>
+      <button class="close-btn" onclick="closeBackup()">✕</button>
+    </div>
+    <div class="backup-body">
+      <p class="backup-info"><strong>💾 Back up:</strong> Tap Copy Data then paste into Notes or email to yourself.<br><br><strong>📥 Restore:</strong> Paste your backup below and tap Restore.</p>
+      <label>Task Data<textarea class="backup-textarea" id="backup-data"></textarea></label>
+      <div class="btn-row">
+        <button class="sec-btn" onclick="exportBackup()">COPY DATA</button>
+        <button class="save-btn" onclick="importBackup()">RESTORE</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SETTINGS SHEET
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="overlay hidden" id="settings-overlay" onclick="closeSettings(event)">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <span class="sheet-title">⚙ SETTINGS</span>
+      <button class="close-btn" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="api-setup">
+        <strong>🔑 API Keys</strong> — stored locally on this device only.<br><br>
+        Get Claude key: <a href="https://console.anthropic.com/" target="_blank" rel="noopener">console.anthropic.com →</a><br>
+        Get OpenAI key: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com/api-keys →</a>
+      </div>
+      <label>
+        Anthropic (Claude) API Key
+        <input type="password" id="claude-key-input" placeholder="sk-ant-api…" autocomplete="off" spellcheck="false">
+      </label>
+      <label>
+        OpenAI API Key
+        <input type="password" id="gpt-key-input" placeholder="sk-…" autocomplete="off" spellcheck="false">
+      </label>
+      <div class="api-status-block">
+        <div class="api-status-row">
+          <span class="api-status-label">Claude (Anthropic)</span>
+          <span class="api-status-val" id="st-claude">—</span>
+        </div>
+        <div class="api-status-row">
+          <span class="api-status-label">GPT-4o (OpenAI)</span>
+          <span class="api-status-val" id="st-gpt">—</span>
+        </div>
+        <div class="api-status-row">
+          <span class="api-status-label">Email (SMTP)</span>
+          <span class="api-status-val" id="st-email">—</span>
+        </div>
+        <div class="api-status-row">
+          <span class="api-status-label">Daily 6:00am Auto Email</span>
+          <span class="api-status-val" id="st-scheduler">—</span>
+        </div>
+        <div class="api-status-row">
+          <span class="api-status-label">Cloud Task Sync</span>
+          <span class="api-status-val" id="st-cloud">—</span>
+        </div>
+      </div>
+      <div class="api-setup" style="font-size:12px">
+        <strong>📧 Server-side email</strong> uses SMTP_USER + SMTP_PASS.<br>
+        <strong>⏰ Daily auto-email at 6:00am</strong> requires Vercel KV + cron env vars (see .env.example).<br><br>
+        <strong>☁ Cloud sync across devices</strong> requires Vercel KV enabled for this project.<br><br>
+        Without SMTP, the <em>Open in Mail App</em> button still works.
+      </div>
+      <button class="save-btn" onclick="saveSettings()">SAVE & APPLY</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────────
+let tasks = [];
+let currentFilter = 'all';
+let editingId = null;
+let formPriority = 3;
+let formStatus = 'todo';
+let db = null;
+let chatHistory = [];
+let aiProvider = 'claude';   // 'claude' | 'gpt'
+let apiStatus = { claude: false, gpt: false, email: false, scheduler: false, kv: false, db: false, cloud: false };
+let syncTimer = null;
+let coachTimer = null;
+
+const PL = { 1:'🔴 Critical', 2:'🟠 High', 3:'🟡 Medium', 4:'🟢 Low' };
+const SL = { todo:'To Do', inprogress:'In Progress', blocked:'Blocked', done:'Done' };
+const PC = { 1:'p1', 2:'p2', 3:'p3', 4:'p4' };
+
+// ── TOAST ──────────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── INDEXEDDB ─────────────────────────────────────────────────────────────────
+function initDB() {
+  return new Promise(resolve => {
+    try {
+      const req = indexedDB.open('TaskmasterDB', 1);
+      req.onupgradeneeded = e => {
+        if (!e.target.result.objectStoreNames.contains('tasks'))
+          e.target.result.createObjectStore('tasks', { keyPath: 'id' });
+      };
+      req.onsuccess = e => { db = e.target.result; resolve(); };
+      req.onerror = () => resolve();
+    } catch(e) { resolve(); }
+  });
+}
+function dbSave(task) {
+  if (db) { try { db.transaction('tasks','readwrite').objectStore('tasks').put(task); } catch(e){} }
+  syncFallback();
+}
+function dbDelete(id) {
+  if (db) { try { db.transaction('tasks','readwrite').objectStore('tasks').delete(id); } catch(e){} }
+  syncFallback();
+}
+function syncFallback() { try { localStorage.setItem('tm_tasks', JSON.stringify(tasks)); } catch(e) {} }
+function dbLoadAll() {
+  return new Promise(resolve => {
+    if (db) {
+      try {
+        const req = db.transaction('tasks','readonly').objectStore('tasks').getAll();
+        req.onsuccess = e => resolve(e.target.result || []);
+        req.onerror = () => resolve(fallbackLoad());
+        return;
+      } catch(e) {}
+    }
+    resolve(fallbackLoad());
+  });
+}
+function fallbackLoad() { try { return JSON.parse(localStorage.getItem('tm_tasks') || '[]'); } catch(e) { return []; } }
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function daysUntil(d) { if (!d) return null; const dt=new Date(d+'T00:00:00'),t=new Date(); t.setHours(0,0,0,0); return Math.round((dt-t)/86400000); }
+function fmtDate(d) { if (!d) return ''; return new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function buildTaskSummary() {
+  const t = today();
+  const active = tasks.filter(x => x.status !== 'done');
+  const done = tasks.filter(x => x.status === 'done');
+  const overdue = active.filter(x => x.due && x.due < t);
+  const dueSoon = active.filter(x => x.due && daysUntil(x.due) >= 0 && daysUntil(x.due) <= 3);
+  const critical = active.filter(x => x.priority === 1);
+  const blocked = active.filter(x => x.status === 'blocked');
+
+  let summary = `Today is ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'})}.\n\n`;
+  summary += `TASK OVERVIEW:\n- Total active: ${active.length}\n- Completed: ${done.length}\n- Overdue: ${overdue.length}\n- Due in ≤3 days: ${dueSoon.length}\n- Critical priority: ${critical.length}\n- Blocked: ${blocked.length}\n\n`;
+
+  if (active.length > 0) {
+    summary += `ACTIVE TASKS:\n`;
+    active.slice(0, 20).forEach(x => {
+      summary += `• [${PL[x.priority]}] "${x.title}"`;
+      if (x.status !== 'todo') summary += ` — ${SL[x.status]}`;
+      if (x.due) { const d = daysUntil(x.due); summary += d < 0 ? ` (OVERDUE ${Math.abs(d)}d)` : d === 0 ? ' (due TODAY)' : ` (due in ${d}d)`; }
+      if (x.category) summary += ` [${x.category}]`;
+      summary += '\n';
+    });
+  }
+  return summary;
+}
+
+function getTopFocusTask() {
+  const activeTasks = tasks.filter(x => x.status !== 'done');
+  return [...activeTasks].sort((a, b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (a.status === 'blocked' && b.status !== 'blocked') return 1;
+    if (a.status !== 'blocked' && b.status === 'blocked') return -1;
+    if (!a.due && b.due) return 1;
+    if (a.due && !b.due) return -1;
+    return (a.due || '').localeCompare(b.due || '');
+  })[0];
+}
+
+function estimateFocusMinutes(task) {
+  if (!task) return 0;
+  let mins = 30;
+  if (task.priority === 1) mins = 60;
+  if (task.priority === 2) mins = 45;
+  if (task.priority === 4) mins = 20;
+
+  const d = daysUntil(task.due);
+  if (d !== null) {
+    if (d < 0) mins += 20;
+    else if (d === 0) mins += 15;
+    else if (d <= 2) mins += 10;
+  }
+
+  if (task.status === 'blocked') mins = Math.max(15, mins - 15);
+  if ((task.notes || '').length > 180) mins += 10;
+  return Math.max(15, Math.min(90, mins));
+}
+
+function renderFocusRecommendation(task, reasonText) {
+  const wrap = document.getElementById('focus-reco');
+  const taskEl = document.getElementById('focus-task');
+  const metaEl = document.getElementById('focus-meta');
+  const reasonEl = document.getElementById('focus-reason');
+  if (!wrap || !taskEl || !metaEl || !reasonEl) return;
+
+  if (!task) {
+    wrap.classList.add('hidden');
+    return;
+  }
+
+  const mins = estimateFocusMinutes(task);
+  taskEl.textContent = task.title;
+  metaEl.textContent = `Suggested block: ${mins} min`;
+  reasonEl.textContent = reasonText || 'Highest impact right now based on priority, status, and due date.';
+  wrap.classList.remove('hidden');
+}
+
+async function runCoachReassessment() {
+  const topTask = getTopFocusTask();
+  if (!topTask) {
+    renderFocusRecommendation(null, '');
+    const strip = document.getElementById('ai-strip-text');
+    if (strip) {
+      strip.textContent = 'No active tasks right now. Add one and I will prioritize it instantly.';
+      strip.classList.remove('loading');
+    }
+    return;
+  }
+
+  const minutes = estimateFocusMinutes(topTask);
+  renderFocusRecommendation(topTask, `Start this now for ${minutes} minutes, then quickly reassess.`);
+
+  if (apiStatus.claude || apiStatus.gpt) {
+    try {
+      const aiReason = await callAI(
+        [{ role: 'user', content: buildTaskSummary() }],
+        `You are a direct productivity coach. The selected focus task is "${topTask.title}". Suggested focus block is ${minutes} minutes.
+Write ONE concise reason (max 130 characters) explaining why this is the next best focus. No emoji.`
+      );
+      renderFocusRecommendation(topTask, aiReason.trim());
+    } catch (_) {
+      // Keep heuristic recommendation if AI call fails.
+    }
+  }
+
+  loadAIStrip();
+  if (!document.getElementById('ai-overlay').classList.contains('hidden')) {
+    renderAISheet();
+  }
+}
+
+function scheduleCoachReassessment(delayMs = 850) {
+  if (coachTimer) clearTimeout(coachTimer);
+  coachTimer = setTimeout(runCoachReassessment, delayMs);
+}
+
+// ── TASK SYNC (for daily scheduled email) ───────────────────────────────────
+function scheduleTaskSync(delayMs = 700) {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(syncTasksToServer, delayMs);
+}
+
+async function syncTasksToServer() {
+  try {
+    const res = await fetch('/api/tasks-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tasks, updatedAt: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error('sync failed');
+  } catch (_) {
+    // Silent fallback: app remains fully usable offline/local.
+  }
+}
+
+async function loadTasksFromCloud(localTasks) {
+  try {
+    const res = await fetch('/api/tasks-sync');
+    if (!res.ok) return;
+    const data = await res.json();
+    const cloudTasks = Array.isArray(data.tasks) ? data.tasks : [];
+
+    // First-time bootstrap: if cloud is empty, push local tasks up.
+    if (!cloudTasks.length && localTasks.length) {
+      tasks = localTasks;
+      await syncTasksToServer();
+      return;
+    }
+
+    tasks = cloudTasks;
+    if (db) {
+      const tx = db.transaction('tasks', 'readwrite');
+      const s = tx.objectStore('tasks');
+      s.clear();
+      tasks.forEach(t => s.put(t));
+    }
+    syncFallback();
+  } catch (_) {
+    // Keep local tasks when cloud load is unavailable.
+  }
+}
+
+// ── AI API CALL ───────────────────────────────────────────────────────────────
+// All AI calls go through the local Express server so API keys stay server-side.
+async function callAI(messages, systemPrompt) {
+  const claudeKey = localStorage.getItem('tm_claude_key') || '';
+  const gptKey    = localStorage.getItem('tm_gpt_key') || '';
+
+  const response = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider: aiProvider, messages, systemPrompt, claudeKey, gptKey })
+  });
+
+  if (!response.ok) {
+    let msg = 'API error ' + response.status;
+    try { const err = await response.json(); msg = err.error || msg; } catch(_) {}
+    throw new Error(msg);
+  }
+  const data = await response.json();
+  return data.text;
+}
+
+// ── AI STATUS CHECK ───────────────────────────────────────────────────────────
+async function checkAPIStatus() {
+  const localClaude = !!localStorage.getItem('tm_claude_key');
+  const localGPT    = !!localStorage.getItem('tm_gpt_key');
+
+  try {
+    const res = await fetch('/api/status');
+    if (res.ok) {
+      const srv = await res.json();
+      apiStatus.claude = localClaude || srv.claude;
+      apiStatus.gpt    = localGPT    || srv.gpt;
+      apiStatus.email  = srv.email;
+      apiStatus.scheduler = !!srv.scheduler;
+      apiStatus.kv = !!srv.kv;
+      apiStatus.db = !!srv.db;
+      apiStatus.cloud = !!srv.cloud;
+    } else {
+      apiStatus.claude = localClaude;
+      apiStatus.gpt    = localGPT;
+      apiStatus.email  = false;
+      apiStatus.scheduler = false;
+      apiStatus.kv = false;
+      apiStatus.db = false;
+      apiStatus.cloud = false;
+    }
+  } catch(_) {
+    // Server not reachable (probably opened as a file) — use localStorage only
+    apiStatus.claude = localClaude;
+    apiStatus.gpt    = localGPT;
+    apiStatus.email  = false;
+    apiStatus.scheduler = false;
+    apiStatus.kv = false;
+    apiStatus.db = false;
+    apiStatus.cloud = false;
+  }
+
+  // Pick a default provider
+  if (!apiStatus.claude && apiStatus.gpt) aiProvider = 'gpt';
+  else aiProvider = 'claude';
+
+  updateStatusUI();
+}
+
+function updateStatusUI() {
+  // Settings status rows
+  const stClaude = document.getElementById('st-claude');
+  const stGPT    = document.getElementById('st-gpt');
+  const stEmail  = document.getElementById('st-email');
+  const stScheduler = document.getElementById('st-scheduler');
+  const stCloud = document.getElementById('st-cloud');
+  if (stClaude) { stClaude.textContent = apiStatus.claude ? '✅ Ready' : '⚠ Not configured'; stClaude.className = 'api-status-val ' + (apiStatus.claude ? 'ok' : 'err'); }
+  if (stGPT)    { stGPT.textContent    = apiStatus.gpt    ? '✅ Ready' : '⚠ Not configured'; stGPT.className    = 'api-status-val ' + (apiStatus.gpt    ? 'ok' : 'err'); }
+  if (stEmail)  { stEmail.textContent  = apiStatus.email  ? '✅ Ready' : 'Not set (mailto: fallback active)'; stEmail.className  = 'api-status-val ' + (apiStatus.email ? 'ok' : 'warn'); }
+  if (stScheduler) {
+    stScheduler.textContent = apiStatus.scheduler ? '✅ Active (6:00am)' : '⚠ Needs SMTP + cloud DB/KV';
+    stScheduler.className = 'api-status-val ' + (apiStatus.scheduler ? 'ok' : 'warn');
+  }
+  if (stCloud) {
+    stCloud.textContent = apiStatus.cloud ? `✅ Enabled (${apiStatus.db ? 'Postgres' : 'KV'})` : '⚠ Needs Postgres or KV';
+    stCloud.className = 'api-status-val ' + (apiStatus.cloud ? 'ok' : 'warn');
+  }
+
+  // AI model badge in the strip
+  const badge = document.getElementById('ai-model-badge');
+  if (badge) {
+    badge.textContent = aiProvider === 'gpt' ? 'GPT-4o' : 'CLAUDE';
+    badge.className   = 'ai-model-badge' + (aiProvider === 'gpt' ? ' gpt' : '');
+  }
+
+  // Email server-send button
+  const serverBtn = document.getElementById('email-server-btn');
+  if (serverBtn) {
+    if (apiStatus.email) serverBtn.classList.remove('hidden');
+    else serverBtn.classList.add('hidden');
+  }
+}
+
+// ── AI PROVIDER TOGGLE ────────────────────────────────────────────────────────
+function setProvider(p) {
+  if (p === 'claude' && !apiStatus.claude) {
+    toast('⚠ Add your Claude API key in ⚙ Settings');
+    return;
+  }
+  if (p === 'gpt' && !apiStatus.gpt) {
+    toast('⚠ Add your OpenAI API key in ⚙ Settings');
+    return;
+  }
+  aiProvider = p;
+  updateStatusUI();
+  // Update provider buttons inside the AI sheet if open
+  document.querySelectorAll('.provider-btn').forEach(btn => {
+    const isActive = btn.dataset.provider === p;
+    btn.classList.remove('active-claude', 'active-gpt');
+    if (isActive) btn.classList.add(p === 'gpt' ? 'active-gpt' : 'active-claude');
+  });
+  toast(p === 'gpt' ? '🤖 Switched to GPT-4o' : '🧠 Switched to Claude');
+}
+
+// ── AI STRIP (one-liner motivator) ───────────────────────────────────────────
+async function loadAIStrip() {
+  if (tasks.length === 0) {
+    document.getElementById('ai-strip-text').textContent = 'Add your first task and I\'ll get you focused! 💪';
+    document.getElementById('ai-strip-text').classList.remove('loading');
+    return;
+  }
+  if (!apiStatus.claude && !apiStatus.gpt) {
+    document.getElementById('ai-strip-text').textContent = 'Add API keys in ⚙ Settings to enable AI coaching.';
+    document.getElementById('ai-strip-text').classList.add('loading');
+    return;
+  }
+  const btn = document.getElementById('ai-refresh-btn');
+  const txt = document.getElementById('ai-strip-text');
+  btn.classList.add('spinning');
+  txt.classList.add('loading');
+  txt.textContent = 'Getting your briefing…';
+
+  try {
+    const result = await callAI(
+      [{ role: 'user', content: buildTaskSummary() }],
+      `You are a sharp, motivating productivity coach built into a task manager app. 
+Based on the user's task list, write ONE punchy, personalised motivational line (max 120 characters) that references something specific from their tasks — an overdue item, a critical task, or their workload. 
+Be direct, energetic, and real. No fluff. No emoji unless it adds real punch. Output ONLY the one line, nothing else.`
+    );
+    txt.textContent = result.trim();
+    txt.classList.remove('loading');
+  } catch(e) {
+    txt.textContent = 'AI unavailable — ' + e.message;
+    txt.classList.add('loading');
+  }
+  btn.classList.remove('spinning');
+}
+
+// ── AI FULL COACH SHEET ───────────────────────────────────────────────────────
+async function openAI() {
+  document.getElementById('ai-overlay').classList.remove('hidden');
+  chatHistory = [];
+  renderAISheet();
+}
+function closeAI(e) { if(e&&e.target!==document.getElementById('ai-overlay')) return; document.getElementById('ai-overlay').classList.add('hidden'); }
+
+function renderAISheet() {
+  const body = document.getElementById('ai-sheet-body');
+  const activeTasks = tasks.filter(x => x.status !== 'done');
+  const topTask = [...activeTasks].sort((a,b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    if (!a.due && b.due) return 1; if (a.due && !b.due) return -1;
+    return (a.due||'').localeCompare(b.due||'');
+  })[0];
+
+  const noKeys = !apiStatus.claude && !apiStatus.gpt;
+  const providerRow = noKeys
+    ? `<div class="api-setup"><strong>⚠ No AI keys configured.</strong><br>Open <strong>⚙ Settings</strong> to add your Claude or OpenAI API key.</div>`
+    : `<div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;color:var(--muted)">Model</span>
+        <div class="provider-toggle">
+          <button class="provider-btn ${aiProvider==='claude'?'active-claude':''}" data-provider="claude" onclick="setProvider('claude')" ${!apiStatus.claude?'disabled':''}>CLAUDE</button>
+          <button class="provider-btn ${aiProvider==='gpt'?'active-gpt':''}" data-provider="gpt" onclick="setProvider('gpt')" ${!apiStatus.gpt?'disabled':''}>GPT-4o</button>
+        </div>
+       </div>`;
+
+  body.innerHTML = `
+    ${providerRow}
+    ${topTask ? `
+    <div class="ai-focus-card">
+      <div class="ai-focus-title">⚡ FOCUS ON THIS FIRST</div>
+      <div class="ai-focus-task">${esc(topTask.title)}</div>
+      <div class="ai-focus-reason">${PL[topTask.priority]}${topTask.due ? ' · Due ' + fmtDate(topTask.due) : ''}${topTask.category ? ' · ' + topTask.category : ''} · Focus ${estimateFocusMinutes(topTask)} min</div>
+    </div>` : ''}
+
+    <div class="ai-section" id="ai-insights-section">
+      <div class="ai-section-title">📊 AI Insights</div>
+      <div class="ai-section-text" id="ai-insights-text" style="color:var(--muted);font-style:italic">Tap below to load your personalised insights…</div>
+      ${!noKeys ? `<button class="save-btn" style="margin-top:12px;font-size:13px;padding:10px" onclick="loadFullInsights()">GET MY INSIGHTS</button>` : ''}
+    </div>
+
+    <div class="ai-section">
+      <div class="ai-section-title">💬 Ask Your Coach</div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-row" style="margin-top:10px">
+        <textarea class="chat-input" id="chat-input" placeholder="Ask anything… 'What should I tackle next?' or 'I'm overwhelmed'" rows="2" onkeydown="chatKeydown(event)" ${noKeys?'disabled':''}></textarea>
+        <button class="chat-send" id="chat-send-btn" onclick="sendChat()" ${noKeys?'disabled':''}>➤</button>
+      </div>
+    </div>
+  `;
+}
+
+async function loadFullInsights() {
+  const txt = document.getElementById('ai-insights-text');
+  const btn = document.getElementById('ai-insights-section').querySelector('button');
+  if (btn) btn.remove();
+  txt.style.fontStyle = 'italic'; txt.style.color = 'var(--muted)';
+  txt.textContent = 'Analysing your tasks…';
+
+  if (tasks.length === 0) { txt.textContent = 'Add some tasks first!'; return; }
+
+  try {
+    const result = await callAI(
+      [{ role: 'user', content: buildTaskSummary() }],
+      `You are an expert productivity coach. Analyse the user's task list and give them a concise, actionable insight report.
+
+Structure your response in exactly this format with these 3 sections, each on its own line starting with the emoji:
+🔍 SITUATION: (2 sentences max — what's the honest state of their workload?)
+⚡ DO THIS NOW: (1 specific task recommendation and exactly why — reference the actual task name)
+💡 PATTERN: (1 insight about how they could work smarter based on what you see)
+
+Be direct, specific, and reference actual task names. No generic advice. Max 120 words total.`
+    );
+
+    const lines = result.trim().split('\n').filter(l => l.trim());
+    txt.style.fontStyle = 'normal'; txt.style.color = '#ddd';
+    txt.innerHTML = lines.map(line => {
+      const formatted = line.replace(/^(🔍|⚡|💡)\s*([^:]+):/,'<strong style="color:var(--accent)">$1 $2:</strong>');
+      return `<div style="margin-bottom:10px;line-height:1.6">${formatted}</div>`;
+    }).join('');
+  } catch(e) {
+    txt.textContent = 'Could not load insights — ' + e.message;
+  }
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+function chatKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  document.getElementById('chat-send-btn').disabled = true;
+  addChatBubble('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+
+  const messagesEl = document.getElementById('chat-messages');
+  const typingId = 'typing-' + Date.now();
+  const typing = document.createElement('div');
+  typing.className = 'chat-msg ai'; typing.id = typingId;
+  typing.innerHTML = `<div class="chat-msg-avatar">🧠</div><div class="chat-bubble" style="background:var(--surface2)"><div class="chat-typing"><span></span><span></span><span></span></div></div>`;
+  messagesEl.appendChild(typing);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  try {
+    const taskContext = buildTaskSummary();
+    const result = await callAI(chatHistory,
+      `You are an embedded AI productivity coach in a mobile task manager app called TASKMASTER.
+
+Here is the user's current task list for context:
+${taskContext}
+
+Your role: Be a direct, warm, motivating coach. Give specific actionable advice based on their actual tasks. Keep responses concise (3-5 sentences max) — this is a mobile chat interface. Reference their actual task names when relevant. Be encouraging but honest. Never be generic.`
+    );
+    document.getElementById(typingId)?.remove();
+    addChatBubble('ai', result);
+    chatHistory.push({ role: 'assistant', content: result });
+  } catch(e) {
+    document.getElementById(typingId)?.remove();
+    addChatBubble('ai', 'Sorry, couldn\'t connect right now. ' + e.message);
+  }
+
+  document.getElementById('chat-send-btn').disabled = false;
+  const el = document.getElementById('chat-messages');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function addChatBubble(role, text) {
+  const messagesEl = document.getElementById('chat-messages');
+  if (!messagesEl) return;
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  div.innerHTML = role === 'ai'
+    ? `<div class="chat-msg-avatar">🧠</div><div class="chat-bubble">${esc(text)}</div>`
+    : `<div class="chat-bubble">${esc(text)}</div><div class="chat-msg-avatar">👤</div>`;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('claude-key-input').value = localStorage.getItem('tm_claude_key') || '';
+  document.getElementById('gpt-key-input').value    = localStorage.getItem('tm_gpt_key')    || '';
+  updateStatusUI();
+  document.getElementById('settings-overlay').classList.remove('hidden');
+}
+function closeSettings(e) {
+  if (e && e.target !== document.getElementById('settings-overlay')) return;
+  document.getElementById('settings-overlay').classList.add('hidden');
+}
+function saveSettings() {
+  const ck = document.getElementById('claude-key-input').value.trim();
+  const gk = document.getElementById('gpt-key-input').value.trim();
+  if (ck) localStorage.setItem('tm_claude_key', ck); else localStorage.removeItem('tm_claude_key');
+  if (gk) localStorage.setItem('tm_gpt_key',    gk); else localStorage.removeItem('tm_gpt_key');
+  document.getElementById('settings-overlay').classList.add('hidden');
+  checkAPIStatus().then(() => toast('✓ Settings saved'));
+}
+
+// ── EMAIL ─────────────────────────────────────────────────────────────────────
+const EMAIL_TO = 'dvdgrgsn@gmail.com';
+
+function openEmail() {
+  document.getElementById('email-preview').textContent = buildEmail();
+  const serverBtn = document.getElementById('email-server-btn');
+  if (apiStatus.email) serverBtn.classList.remove('hidden');
+  else serverBtn.classList.add('hidden');
+  document.getElementById('email-overlay').classList.remove('hidden');
+}
+function closeEmail(e) { if(e&&e.target!==document.getElementById('email-overlay')) return; document.getElementById('email-overlay').classList.add('hidden'); }
+
+function buildEmail() {
+  const t = today();
+  const top = tasks.filter(x=>x.status!=='done'&&x.priority<=2).sort((a,b)=>{if(a.priority!==b.priority)return a.priority-b.priority;if(!a.due&&b.due)return 1;if(a.due&&!b.due)return -1;return(a.due||'').localeCompare(b.due||'');});
+  const overdue = tasks.filter(x=>x.status!=='done'&&x.due&&x.due<t);
+  let body = `TASKMASTER — PRIORITY BRIEFING\nGenerated: ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}\n${'─'.repeat(40)}\n\n`;
+  if (overdue.length) { body+=`⚠ OVERDUE (${overdue.length})\n${'─'.repeat(20)}\n`; overdue.forEach(x=>{body+=`• ${x.title} (${Math.abs(daysUntil(x.due))}d overdue)\n`;if(x.notes)body+=`  ${x.notes}\n`;}); body+='\n'; }
+  if (top.length) { body+=`🔴 CRITICAL & HIGH PRIORITY (${top.length})\n${'─'.repeat(20)}\n`; top.forEach(x=>{body+=`• [${PL[x.priority]}] ${x.title}\n`;if(x.due)body+=`  Due: ${fmtDate(x.due)}\n`;if(x.status!=='todo')body+=`  Status: ${SL[x.status]}\n`;if(x.category)body+=`  Category: ${x.category}\n`;if(x.notes)body+=`  Notes: ${x.notes}\n`;body+='\n';}); }
+  else { body += `✅ No critical or high priority tasks outstanding.\n\n`; }
+  body += `${'─'.repeat(40)}\nTotal: ${tasks.length}  |  Done: ${tasks.filter(x=>x.status==='done').length}  |  Remaining: ${tasks.filter(x=>x.status!=='done').length}\n\nSent from TASKMASTER`;
+  return body;
+}
+
+// Opens the system default mail client with pre-filled address
+function sendEmail() {
+  const subject = `Priority Briefing — ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`;
+  window.location.href = `mailto:${encodeURIComponent(EMAIL_TO)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(buildEmail())}`;
+}
+
+// Sends via the Express server -> Gmail SMTP
+async function sendEmailViaServer() {
+  const btn = document.getElementById('email-server-btn');
+  btn.disabled = true;
+  btn.textContent = 'SENDING…';
+  const subject = `Priority Briefing — ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short'})}`;
+  try {
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subject, body: buildEmail() })
+    });
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error); }
+    document.getElementById('email-overlay').classList.add('hidden');
+    toast(`✓ Email sent to ${EMAIL_TO}! 📧`);
+  } catch(e) {
+    toast('❌ Send failed: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = 'SEND DIRECTLY';
+}
+
+function printTaskList() {
+  const list = sortTasks(filterTasks(tasks));
+  const now = new Date();
+  const rows = list.map((task, i) => {
+    const dueText = task.due ? fmtDate(task.due) : 'No due date';
+    const statusText = SL[task.status] || task.status || 'To Do';
+    const notesText = task.notes ? `\nNotes: ${task.notes}` : '';
+    const catText = task.category ? `\nCategory: ${task.category}` : '';
+    return `${i + 1}. ${task.title}\nPriority: ${PL[task.priority] || 'Medium'} | Status: ${statusText} | Due: ${dueText}${catText}${notesText}`;
+  });
+
+  const content = rows.length ? rows.join('\n\n') : 'No tasks in the current list view.';
+  const printHtml = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Taskmaster Print</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 28px; color: #111; }
+    h1 { margin: 0 0 6px; font-size: 24px; }
+    .meta { margin: 0 0 18px; color: #555; font-size: 12px; }
+    pre { white-space: pre-wrap; font-family: Arial, sans-serif; line-height: 1.45; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>TASKMASTER TASK LIST</h1>
+  <p class="meta">Generated: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} ${now.toLocaleTimeString()}</p>
+  <pre>${esc(content)}</pre>
+</body>
+</html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=700');
+  if (!w) {
+    toast('Pop-up blocked. Allow pop-ups to print.');
+    return;
+  }
+  w.document.open();
+  w.document.write(printHtml);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 200);
+}
+
+// ── FILTER / SORT ─────────────────────────────────────────────────────────────
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active'); renderTasks();
+}
+function filterTasks(list) {
+  const t = today();
+  switch(currentFilter) {
+    case 'critical':   return list.filter(x=>x.priority==1);
+    case 'high':       return list.filter(x=>x.priority==2);
+    case 'medium':     return list.filter(x=>x.priority==3);
+    case 'low':        return list.filter(x=>x.priority==4);
+    case 'todo':       return list.filter(x=>x.status==='todo');
+    case 'inprogress': return list.filter(x=>x.status==='inprogress');
+    case 'done':       return list.filter(x=>x.status==='done');
+    case 'overdue':    return list.filter(x=>x.due&&x.due<t&&x.status!=='done');
+    default:           return list;
+  }
+}
+function sortTasks(list) {
+  const s = document.getElementById('sort-select').value;
+  return [...list].sort((a,b) => {
+    if (s==='priority') { if(a.priority!==b.priority) return a.priority-b.priority; if(!a.due&&b.due) return 1; if(a.due&&!b.due) return -1; return (a.due||'').localeCompare(b.due||''); }
+    if (s==='due')      { if(!a.due&&b.due) return 1; if(a.due&&!b.due) return -1; return (a.due||'').localeCompare(b.due||''); }
+    if (s==='created')  return b.created-a.created;
+    if (s==='status')   return (a.status||'').localeCompare(b.status||'');
+    if (s==='title')    return a.title.localeCompare(b.title);
+    return 0;
+  });
+}
+
+// ── STATS + RENDER ────────────────────────────────────────────────────────────
+function updateStats() {
+  const t = today();
+  document.getElementById('stat-total').textContent  = tasks.filter(x=>x.status!=='done').length;
+  document.getElementById('stat-urgent').textContent = tasks.filter(x=>x.priority==1&&x.status!=='done').length;
+  document.getElementById('stat-due').textContent    = tasks.filter(x=>x.due&&x.due>=t&&daysUntil(x.due)<=3&&x.status!=='done').length;
+  document.getElementById('stat-done').textContent   = tasks.filter(x=>x.status==='done').length;
+}
+
+function renderTasks() {
+  const list   = document.getElementById('task-list');
+  const sorted = sortTasks(filterTasks(tasks));
+  updateStats();
+  document.getElementById('cat-list').innerHTML = [...new Set(tasks.map(t=>t.category).filter(Boolean))].map(c=>`<option value="${esc(c)}">`).join('');
+  if (!sorted.length) {
+    list.innerHTML = `<div class="empty-state"><div class="big-icon">📋</div><div>No tasks here.</div><div style="font-size:13px;opacity:0.6">Tap + to add your first task.</div></div>`;
+    return;
+  }
+  list.innerHTML = '';
+  sorted.forEach(task => {
+    const div = document.createElement('div');
+    div.className = 'task-card'+(task.status==='done'?' done':'');
+    div.dataset.priority = task.priority;
+    const days = daysUntil(task.due);
+    let dc='date', dl=task.due?fmtDate(task.due):'';
+    if (task.due&&task.status!=='done') {
+      if(days<0){dc='date overdue';dl='⚠ '+Math.abs(days)+'d overdue';}
+      else if(days===0){dc='date soon';dl='⚡ Due today';}
+      else if(days<=3){dc='date soon';dl='⏱ '+days+'d left';}
+    }
+    div.innerHTML = `
+      <div class="check-wrap"><button class="check-btn ${task.status==='done'?'checked':''}" onclick="toggleDone('${task.id}')">✓</button></div>
+      <div class="task-body">
+        <div class="task-title">${esc(task.title)}</div>
+        ${task.notes?`<div class="task-note">${esc(task.notes)}</div>`:''}
+        <div class="task-meta">
+          <span class="badge ${PC[task.priority]}">${PL[task.priority]}</span>
+          ${task.status!=='todo'?`<span class="badge status">${SL[task.status]||task.status}</span>`:''}
+          ${task.due?`<span class="badge ${dc}">📅 ${dl}</span>`:''}
+          ${task.category?`<span class="badge cat">${esc(task.category)}</span>`:''}
+        </div>
+      </div>
+      <div class="card-actions"><button class="small-btn" onclick="openEdit('${task.id}')">✏️</button></div>`;
+    list.appendChild(div);
+  });
+}
+
+// ── ADD / EDIT ────────────────────────────────────────────────────────────────
+function openAdd() {
+  editingId=null; formPriority=3; formStatus='todo';
+  document.getElementById('sheet-title').textContent='NEW TASK';
+  ['f-title','f-notes','f-cat','f-due','edit-id'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('delete-btn').classList.add('hidden');
+  syncSegs(); document.getElementById('add-overlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('f-title').focus(),300);
+}
+function openEdit(id) {
+  const task=tasks.find(t=>t.id===id); if(!task) return;
+  editingId=id; formPriority=task.priority; formStatus=task.status;
+  document.getElementById('sheet-title').textContent='EDIT TASK';
+  document.getElementById('f-title').value=task.title;
+  document.getElementById('f-notes').value=task.notes||'';
+  document.getElementById('f-cat').value=task.category||'';
+  document.getElementById('f-due').value=task.due||'';
+  document.getElementById('delete-btn').classList.remove('hidden');
+  syncSegs(); document.getElementById('add-overlay').classList.remove('hidden');
+}
+function closeAdd(e) { if(e&&e.target!==document.getElementById('add-overlay')) return; document.getElementById('add-overlay').classList.add('hidden'); }
+function setPrio(p){formPriority=p;syncSegs();}
+function setStatus(s){formStatus=s;syncSegs();}
+function syncSegs(){
+  document.querySelectorAll('#prio-seg .seg-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.val)===formPriority));
+  document.querySelectorAll('#status-seg .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.val===formStatus));
+}
+function saveTask() {
+  const title=document.getElementById('f-title').value.trim();
+  if(!title){document.getElementById('f-title').focus();return;}
+  const data={title,notes:document.getElementById('f-notes').value.trim(),category:document.getElementById('f-cat').value.trim(),priority:formPriority,status:formStatus,due:document.getElementById('f-due').value||null};
+  if(editingId){const idx=tasks.findIndex(t=>t.id===editingId);if(idx>-1){tasks[idx]={...tasks[idx],...data};dbSave(tasks[idx]);}}
+  else{const task={id:uid(),created:Date.now(),...data};tasks.unshift(task);dbSave(task);}
+  document.getElementById('add-overlay').classList.add('hidden');
+  scheduleTaskSync();
+  scheduleCoachReassessment(250);
+  renderTasks();toast('✓ Task saved');
+}
+function deleteTask() {
+  if(!editingId||!confirm('Delete this task?')) return;
+  dbDelete(editingId);tasks=tasks.filter(t=>t.id!==editingId);
+  document.getElementById('add-overlay').classList.add('hidden');
+  scheduleTaskSync();
+  scheduleCoachReassessment(250);
+  renderTasks();toast('Task deleted');
+}
+function toggleDone(id) {
+  const task=tasks.find(t=>t.id===id);if(!task)return;
+  task.status=task.status==='done'?'todo':'done';
+  scheduleTaskSync();
+  scheduleCoachReassessment(250);
+  dbSave(task);renderTasks();
+  toast(task.status==='done'?'✓ Done! Great work 🎉':'Reopened');
+}
+
+// ── BACKUP ────────────────────────────────────────────────────────────────────
+function openBackup(){document.getElementById('backup-data').value=JSON.stringify(tasks,null,2);document.getElementById('backup-overlay').classList.remove('hidden');}
+function closeBackup(e){if(e&&e.target!==document.getElementById('backup-overlay'))return;document.getElementById('backup-overlay').classList.add('hidden');}
+function exportBackup(){
+  const ta=document.getElementById('backup-data');
+  ta.select();ta.setSelectionRange(0,99999);
+  try{document.execCommand('copy');toast('✓ Copied! Paste into Notes to save.');}
+  catch(e){toast('Long-press the text above and copy manually');}
+}
+async function importBackup(){
+  try{
+    const imported=JSON.parse(document.getElementById('backup-data').value.trim());
+    if(!Array.isArray(imported))throw new Error();
+    tasks=imported;
+    if(db){const tx=db.transaction('tasks','readwrite');const s=tx.objectStore('tasks');s.clear();tasks.forEach(t=>s.put(t));}
+    syncFallback();
+    document.getElementById('backup-overlay').classList.add('hidden');
+    scheduleTaskSync();
+    scheduleCoachReassessment(250);
+    renderTasks();toast(`✓ Restored ${tasks.length} tasks`);
+  }catch(e){toast('❌ Invalid data');}
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function init() {
+  await initDB();
+  const localTasks = await dbLoadAll();
+  tasks = localTasks;
+  await loadTasksFromCloud(localTasks);
+  renderTasks();
+  await checkAPIStatus();
+  scheduleCoachReassessment(200);
+  setTimeout(loadAIStrip, 600);
+}
+init();
+</script>
+</body>
+</html>

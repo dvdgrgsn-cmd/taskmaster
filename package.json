@@ -1,0 +1,20 @@
+{
+  "name": "taskmaster",
+  "version": "1.0.0",
+  "description": "TaskMaster — AI-powered productivity app with Claude & GPT",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@vercel/kv": "^2.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^8.0.5",
+    "pg": "^8.13.1"
+  }
+}
