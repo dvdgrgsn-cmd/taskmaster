@@ -1,0 +1,31 @@
+name: Daily Taskmaster Email
+
+on:
+  schedule:
+    - cron: '0 20 * * *' # 6:00 AM Brisbane (UTC+10)
+  workflow_dispatch:
+
+jobs:
+  send-daily-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily digest endpoint
+        env:
+          APP_URL: https://taskmaster-kappa-one.vercel.app
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          response=$(curl -sS -w "\n%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${APP_URL}/api/cron-daily-email")
+
+          body=$(echo "$response" | head -n -1)
+          code=$(echo "$response" | tail -n1)
+
+          echo "HTTP ${code}"
+          echo "$body"
+
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            exit 1
+          fi
